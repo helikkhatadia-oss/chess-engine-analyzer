@@ -19,3 +19,15 @@ sacrifice verification — realised during early classifier testing
 that the primary engine's own search depth wasn't reliable enough on
 its own to distinguish a genuine brilliancy from a losing sacrifice
 that only looks good a few plies deep.
+
+## Move classifier (Brilliant / Great / Best / ... / Blunder)
+Core experimental component. Centipawn-loss thresholds started as
+rough guesses modelled loosely on public descriptions of chess.com/
+Lichess-style classifiers, then adjusted after test runs against
+Morphy's 1858 Opera Game produced an implausible result (mate-range
+evaluations were producing centipawn-loss values in the tens of
+thousands, dominating the summary statistics) — added clamping for
+mate-adjacent scores as a direct fix. Brilliant-move detection
+required the Stockfish cross-check (see previous entry) after an
+early version flagged a losing sacrifice as Brilliant on primary-
+engine evaluation alone.
