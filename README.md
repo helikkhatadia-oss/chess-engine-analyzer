@@ -20,10 +20,25 @@ PGN file, or played live in the terminal), it tells you whether the move was
 ## Setup
 
 ```bash
-pip install chess --break-system-packages
-# Stockfish (used only for Brilliant-move verification, not primary analysis):
-apt-get install stockfish     # or: brew install stockfish
+pip install -r requirements.txt
+# (or: pip install chess --break-system-packages, on systems that need the flag)
 ```
+
+Stockfish is used only for Brilliant-move verification, not primary analysis, so it's
+optional — the tool runs fine without it via `--no-stockfish`, just with less
+reliable Brilliant detection. To install it:
+
+- **Linux:** `sudo apt-get install stockfish`
+- **macOS:** `brew install stockfish`
+- **Windows:** there's no package-manager default. Download the Windows build from
+  [stockfishchess.org/download/windows](https://stockfishchess.org/download/windows/),
+  extract the `.zip`, and either:
+  - add the folder containing `stockfish*.exe` to your system PATH, or
+  - pass the `.exe`'s full path directly: `--stockfish-path C:\path\to\stockfish-windows-x86-64-avx2.exe`, or
+  - set an environment variable: `set STOCKFISH_PATH=C:\path\to\stockfish.exe`
+
+If Stockfish isn't found, the tool raises a clear error telling you exactly which of
+these to do — it won't fail with an opaque traceback.
 
 ## Usage
 
@@ -40,6 +55,9 @@ python3 analyze.py pgn --file examples/sample_game.pgn --depth 6 --movetime 1000
 - `--no-stockfish` — skip Stockfish verification (Brilliant detection
   becomes less reliable, since it then trusts only the primary engine's
   own search)
+- `--stockfish-path` — full path to the Stockfish executable, if it's
+  not discoverable on your system PATH (mainly needed on Windows — see
+  Setup above)
 - `--out` — write an annotated PGN with a classification comment on every
   move, viewable in any PGN reader
 

@@ -121,7 +121,8 @@ def cmd_pgn(args):
           f"+ {'Stockfish verification' if not args.no_stockfish else 'no Stockfish verification'}\n")
 
     clf = GameClassifier(depth=args.depth, movetime_ms=args.movetime,
-                          use_stockfish_verify=not args.no_stockfish)
+                          use_stockfish_verify=not args.no_stockfish,
+                          stockfish_path=args.stockfish_path)
     try:
         analyses = clf.classify_game(game)
     finally:
@@ -147,7 +148,8 @@ def cmd_live(args):
     print()
 
     clf = GameClassifier(depth=args.depth, movetime_ms=args.movetime,
-                          use_stockfish_verify=not args.no_stockfish)
+                          use_stockfish_verify=not args.no_stockfish,
+                          stockfish_path=args.stockfish_path)
     try:
         ply = 0
         analyses = []
@@ -202,6 +204,10 @@ def main():
                              "practical since own_engine is pure Python)")
     pgn_p.add_argument("--no-stockfish", action="store_true",
                         help="Disable Stockfish verification (Brilliant detection will be less reliable)")
+    pgn_p.add_argument("--stockfish-path", default=None,
+                        help="Full path to the Stockfish executable, if it's not on your system PATH "
+                             "(e.g. on Windows: C:\\stockfish\\stockfish-windows-x86-64-avx2.exe). "
+                             "You can also set this via the STOCKFISH_PATH environment variable.")
     pgn_p.add_argument("--out", help="Write an annotated PGN to this path")
     pgn_p.set_defaults(func=cmd_pgn)
 
@@ -211,6 +217,7 @@ def main():
     live_p.add_argument("--depth", type=int, default=6)
     live_p.add_argument("--movetime", type=int, default=1000)
     live_p.add_argument("--no-stockfish", action="store_true")
+    live_p.add_argument("--stockfish-path", default=None)
     live_p.set_defaults(func=cmd_live)
 
     args = parser.parse_args()

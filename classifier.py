@@ -132,12 +132,13 @@ def material_value(board: chess.Board, color: bool) -> int:
 
 
 class GameClassifier:
-    def __init__(self, depth: int = 14, movetime_ms: int = None, use_stockfish_verify: bool = True):
+    def __init__(self, depth: int = 14, movetime_ms: int = None, use_stockfish_verify: bool = True,
+                 stockfish_path: str = None):
         self.own_engine = OwnEngine()
         self.depth = depth
         self.movetime_ms = movetime_ms
         self.use_stockfish_verify = use_stockfish_verify
-        self.sf = StockfishEngine() if use_stockfish_verify else None
+        self.sf = StockfishEngine(path=stockfish_path) if use_stockfish_verify else None
 
     def close(self):
         if self.sf:

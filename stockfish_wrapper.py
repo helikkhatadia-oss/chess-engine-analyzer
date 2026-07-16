@@ -7,13 +7,70 @@ own_engine.Engine.
 
 import subprocess
 import shutil
+import os
+import glob
+import platform
 
-DEFAULT_STOCKFISH_PATH = "/usr/games/stockfish"
+# Linux/macOS default when installed via package manager (apt, brew, etc.)
+DEFAULT_STOCKFISH_PATH_UNIX = "/usr/games/stockfish"
+
+
+def _find_stockfish(explicit_path: str = None) -> str:
+    """Resolve the Stockfish executable path, checking (in order):
+    1. An explicitly passed path
+    2. The STOCKFISH_PATH environment variable
+    3. The system PATH (works if you added Stockfish's folder to PATH,
+       or installed it via apt/brew/choco)
+    4. Common install locations (Linux package-manager path; typical
+       Windows extraction folders under Downloads)
+    Raises a clear, actionable error if none of these find it — this is
+    especially relevant on Windows, where there's no package manager
+    default and the .exe must be downloaded manually from
+    https://stockfishchess.org/download/windows/
+    """
+    candidates = []
+    if explicit_path:
+        candidates.append(explicit_path)
+    if os.environ.get("STOCKFISH_PATH"):
+        candidates.append(os.environ["STOCKFISH_PATH"])
+    which_result = shutil.which("stockfish") or shutil.which("stockfish.exe")
+    if which_result:
+        candidates.append(which_result)
+    candidates.append(DEFAULT_STOCKFISH_PATH_UNIX)
+
+    # Common Windows extraction spots — glob since the filename varies by
+    # build (avx2 / bmi2 / popcnt / modern etc.)
+    if platform.system() == "Windows":
+        home = os.path.expanduser("~")
+        search_globs = [
+            os.path.join(home, "Downloads", "**", "stockfish*.exe"),
+            os.path.join(home, "Downloads", "stockfish*.exe"),
+            "C:\\stockfish\\stockfish*.exe",
+        ]
+        for pattern in search_globs:
+            candidates.extend(glob.glob(pattern, recursive=True))
+
+    for c in candidates:
+        if c and os.path.isfile(c):
+            return c
+
+    raise FileNotFoundError(
+        "Could not find a Stockfish executable.\n"
+        "  - On Windows: download it from https://stockfishchess.org/download/windows/, "
+        "extract the .zip, and either pass its path explicitly "
+        "(--stockfish-path C:\\path\\to\\stockfish.exe on the CLI, or "
+        "StockfishEngine(path=...) in code), or set an STOCKFISH_PATH "
+        "environment variable to the .exe's full path.\n"
+        "  - On Linux: sudo apt-get install stockfish\n"
+        "  - On macOS: brew install stockfish\n"
+        "  - Or run with --no-stockfish to skip Stockfish verification entirely "
+        "(Brilliant-move detection will be less reliable, but everything else works)."
+    )
 
 
 class StockfishEngine:
     def __init__(self, path: str = None, threads: int = 2, hash_mb: int = 128):
-        self.path = path or shutil.which("stockfish") or DEFAULT_STOCKFISH_PATH
+        self.path = _find_stockfish(path)
         self.proc = subprocess.Popen(
             [self.path],
             stdin=subprocess.PIPE,
