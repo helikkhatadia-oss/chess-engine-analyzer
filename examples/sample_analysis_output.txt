@@ -1,0 +1,62 @@
+Analyzing: Paul Morphy vs Duke of Brunswick & Count Isouard  (1-0, 1858.??.??)
+Engine: own_engine (depth=4, movetime=300ms) + Stockfish verification
+
+    1. e4          [Book      ] eval   -0.25  (best: Nf3, cp lost: 25)
+  1... e5          [Book      ] eval   +0.00  (best: Nf6, cp lost: 25)
+    2. Nf3         [Book      ] eval   +0.20  (best: Nf3, cp lost: 0)
+  2... d6          [Book      ] eval   -0.40  (best: Nf6, cp lost: 20)
+    3. d4          [Good      ] eval   +0.20  (best: Bb5+, cp lost: 20)
+  3... Bg4     ?!  [Inaccuracy] eval   -0.50  (best: Nf6, cp lost: 30)
+    4. dxe5    ★   [Best      ] eval   +1.00  (best: dxe5, cp lost: 0)
+  4... Bxf3    ★   [Best      ] eval   -0.50  (best: Bxf3, cp lost: 0)
+    5. Qxf3    ★   [Best      ] eval   +1.00  (best: Qxf3, cp lost: 0)
+  5... dxe5    ★   [Best      ] eval   -0.90  (best: dxe5, cp lost: 0)
+    6. Bc4     ?   [Mistake   ] eval   +0.35  (best: Qb3, cp lost: 55)
+  6... Nf6     ★   [Best      ] eval   -1.40  (best: Nf6, cp lost: 105)
+    7. Qb3     ★   [Best      ] eval   +1.45  (best: Qb3, cp lost: 0)
+  7... Qe7     ★   [Best      ] eval   -1.80  (best: Qe7, cp lost: 35)
+    8. Nc3     ?   [Mistake   ] eval   +1.00  (best: Bxf7+, cp lost: 80)
+  8... c6          [Good      ] eval   -1.15  (best: b6, cp lost: 15)
+    9. Bg5     ★   [Best      ] eval   +1.25  (best: Bg5, cp lost: 0)
+  9... b5      ★   [Best      ] eval   -1.00  (best: Na6, cp lost: 0)
+   10. Nxb5    ?   [Mistake   ] eval   +0.05  (best: Bxf6, cp lost: 95)
+ 10... cxb5    ★   [Best      ] eval   -0.35  (best: cxb5, cp lost: 30)
+   11. Bxb5+   ★   [Best      ] eval   +0.00  (best: Bxb5+, cp lost: 35)
+ 11... Nbd7    ★   [Best      ] eval   -2.60  (best: Nbd7, cp lost: 260)
+   12. O-O-O   ★   [Best      ] eval   +0.30  (best: O-O-O, cp lost: 230)
+ 12... Rd8     ★   [Best      ] eval   -1.95  (best: Rd8, cp lost: 165)
+   13. Rxd7    ?!  [Inaccuracy] eval   +1.45  (best: Qd3, cp lost: 50)
+ 13... Rxd7    ★   [Best      ] eval   -2.95  (best: Rxd7, cp lost: 150)
+   14. Rd1     ★   [Best      ] eval   +2.95  (best: Rd1, cp lost: 0)
+ 14... Qe6     ★   [Best      ] eval   -3.50  (best: Qe6, cp lost: 55)
+   15. Bxd7+   ★   [Best      ] eval   +5.20  (best: Qxe6+, cp lost: 0)
+ 15... Nxd7    ??  [Blunder   ] eval      #-  (best: Qxd7, cp lost: 2000)
+   16. Qb8+    !!  [Brilliant ] eval      #+  (best: Qb8+, cp lost: 0)
+           └─ Sound sacrifice verified by Stockfish
+ 16... Nxb8    ★   [Best      ] eval      #-  (best: Nxb8, cp lost: 1)
+   17. Rd8#    ★   [Best      ] eval      #+  (best: Rd8#, cp lost: 0)
+
+========================================================================
+SUMMARY
+========================================================================
+
+Paul Morphy (White):
+    Brilliant    1
+    Best         9
+    Good         1
+    Book         2
+    Inaccuracy   1
+    Mistake      3
+    Average centipawn loss: 34.7
+    Estimated accuracy: 94.2%
+
+Duke of Brunswick & Count Isouard (Black):
+    Best         11
+    Good         1
+    Book         2
+    Inaccuracy   1
+    Blunder      1
+    Average centipawn loss: 180.7
+    Estimated accuracy: 69.9%
+
+Annotated PGN written to examples/annotated_opera_game.pgn

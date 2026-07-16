@@ -1,0 +1,42 @@
+[Event "Paris Opera"]
+[Site "Paris"]
+[Date "1858.??.??"]
+[Round "?"]
+[White "Paul Morphy"]
+[Black "Duke of Brunswick & Count Isouard"]
+[Result "1-0"]
+
+1. e4 { Book. Eval: -0.25. Best: Nf3 (cp lost: 25). } 1... e5
+{ Book. Eval: +0.00. Best: Nf6 (cp lost: 25). } 2. Nf3
+{ Book. Eval: +0.20. Best: Nf3 (cp lost: 0). } 2... d6
+{ Book. Eval: -0.40. Best: Nf6 (cp lost: 20). } 3. d4
+{ Good. Eval: +0.20. Best: Bb5+ (cp lost: 20). } 3... Bg4
+{ Inaccuracy ?!. Eval: -0.50. Best: Nf6 (cp lost: 30). } 4. dxe5
+{ Best ★. Eval: +1.00. Best: dxe5 (cp lost: 0). } 4... Bxf3
+{ Best ★. Eval: -0.50. Best: Bxf3 (cp lost: 0). } 5. Qxf3
+{ Best ★. Eval: +1.00. Best: Qxf3 (cp lost: 0). } 5... dxe5
+{ Best ★. Eval: -0.90. Best: dxe5 (cp lost: 0). } 6. Bc4
+{ Mistake ?. Eval: +0.35. Best: Qb3 (cp lost: 55). } 6... Nf6
+{ Best ★. Eval: -1.40. Best: Nf6 (cp lost: 105). } 7. Qb3
+{ Best ★. Eval: +1.45. Best: Qb3 (cp lost: 0). } 7... Qe7
+{ Best ★. Eval: -1.80. Best: Qe7 (cp lost: 35). } 8. Nc3
+{ Mistake ?. Eval: +1.00. Best: Bxf7+ (cp lost: 80). } 8... c6
+{ Good. Eval: -1.15. Best: b6 (cp lost: 15). } 9. Bg5
+{ Best ★. Eval: +1.25. Best: Bg5 (cp lost: 0). } 9... b5
+{ Best ★. Eval: -1.00. Best: Na6 (cp lost: 0). } 10. Nxb5
+{ Mistake ?. Eval: +0.05. Best: Bxf6 (cp lost: 95). } 10... cxb5
+{ Best ★. Eval: -0.35. Best: cxb5 (cp lost: 30). } 11. Bxb5+
+{ Best ★. Eval: +0.00. Best: Bxb5+ (cp lost: 35). } 11... Nbd7
+{ Best ★. Eval: -2.60. Best: Nbd7 (cp lost: 260). } 12. O-O-O
+{ Best ★. Eval: +0.30. Best: O-O-O (cp lost: 230). } 12... Rd8
+{ Best ★. Eval: -1.95. Best: Rd8 (cp lost: 165). } 13. Rxd7
+{ Inaccuracy ?!. Eval: +1.45. Best: Qd3 (cp lost: 50). } 13... Rxd7
+{ Best ★. Eval: -2.95. Best: Rxd7 (cp lost: 150). } 14. Rd1
+{ Best ★. Eval: +2.95. Best: Rd1 (cp lost: 0). } 14... Qe6
+{ Best ★. Eval: -3.50. Best: Qe6 (cp lost: 55). } 15. Bxd7+
+{ Best ★. Eval: +5.20. Best: Qxe6+ (cp lost: 0). } 15... Nxd7
+{ Blunder ??. Eval: #-. Best: Qxd7 (cp lost: 2000). } 16. Qb8+
+{ Brilliant !!. Eval: #+. Best: Qb8+ (cp lost: 0). Sound sacrifice verified by Stockfish }
+16... Nxb8 { Best ★. Eval: #-. Best: Nxb8 (cp lost: 1). } 17. Rd8#
+{ Best ★. Eval: #+. Best: Rd8# (cp lost: 0). } 1-0
+
