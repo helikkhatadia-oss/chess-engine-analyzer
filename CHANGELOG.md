@@ -31,3 +31,11 @@ mate-adjacent scores as a direct fix. Brilliant-move detection
 required the Stockfish cross-check (see previous entry) after an
 early version flagged a losing sacrifice as Brilliant on primary-
 engine evaluation alone.
+
+## CLI interface
+Added last, once the underlying engine + classifier were validated
+independently. live mode's end-of-game summary initially re-ran
+classification on the whole game a second time via
+chess.pgn.Game.from_board() — wasteful and redundant with the
+per-move analysis already computed during play. Fixed to accumulate
+each move's analysis as it happens.
