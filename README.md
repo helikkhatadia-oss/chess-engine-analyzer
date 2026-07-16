@@ -13,7 +13,9 @@ PGN file, or played live in the terminal), it tells you whether the move was
 | `stockfish_wrapper.py`  | Thin subprocess wrapper around the system Stockfish binary, used to verify "Brilliant" sacrifice calls independently of the primary engine. |
 | `classifier.py`         | The actual classification logic — thresholds, sacrifice detection, "Great move" (only-move) detection, book-move heuristic. |
 | `analyze.py`            | CLI entry point: `pgn` mode (analyze a PGN file) and `live` mode (play interactively with move-by-move feedback). |
-| `sample_game.pgn`       | The famous Morphy "Opera Game" (1858), included as a worked example — see below. |
+| `examples/sample_game.pgn` | The famous Morphy "Opera Game" (1858), included as a worked example — see below. |
+| `examples/annotated_opera_game.pgn` | The Opera Game annotated by this tool's classifier — see "Worked example" below. |
+| `examples/sample_analysis_output.txt` | Full console output from running the analyzer on the Opera Game. |
 
 ## Setup
 
@@ -28,7 +30,7 @@ apt-get install stockfish     # or: brew install stockfish
 ### Analyze a PGN file
 
 ```bash
-python3 analyze.py pgn --file sample_game.pgn --depth 6 --movetime 1000 --out annotated.pgn
+python3 analyze.py pgn --file examples/sample_game.pgn --depth 6 --movetime 1000 --out annotated.pgn
 ```
 
 - `--depth` — search depth ceiling (default 6)
@@ -52,7 +54,7 @@ classification after every move — yours and the engine's.
 
 ## Worked example: the Opera Game
 
-`sample_game.pgn` is Paul Morphy's famous 1858 game against the Duke of
+`examples/sample_game.pgn` is Paul Morphy's famous 1858 game against the Duke of
 Brunswick and Count Isouard. Running the analyzer on it correctly:
 
 - Flags **15...Nxd7?? as a Blunder** (the recapture that allows the mating
