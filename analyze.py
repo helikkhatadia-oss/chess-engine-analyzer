@@ -120,14 +120,20 @@ def analyze_game(game: chess.pgn.Game, args, out_path=None):
     black_name = game.headers.get("Black", "Black")
     print(f"Analyzing: {white_name} vs {black_name}  "
           f"({game.headers.get('Result', '?')}, {game.headers.get('Date', '?')})")
-    print(f"Engine: own_engine (depth={args.depth}"
-          f"{f', movetime={args.movetime}ms' if args.movetime else ''}) "
-          f"+ {'Stockfish verification' if not args.no_stockfish else 'no Stockfish verification'}\n")
 
     clf = GameClassifier(depth=args.depth, movetime_ms=args.movetime,
                           use_stockfish_verify=not args.no_stockfish,
                           stockfish_path=args.stockfish_path)
     try:
+        if clf.primary == "stockfish":
+            print(f"Engine: Stockfish (primary evaluator, every move"
+                  f"{f', movetime={args.movetime}ms' if args.movetime else f', depth={args.depth}'}) "
+                  f"-- own_engine used only as the search-depth fallback if Stockfish is unavailable\n")
+        else:
+            print(f"Engine: own_engine only (depth={args.depth}"
+                  f"{f', movetime={args.movetime}ms' if args.movetime else ''}) "
+                  f"-- Stockfish disabled (--no-stockfish); classifications are weaker "
+                  f"on quiet/positional moves, see README\n")
         analyses = clf.classify_game(game)
     finally:
         clf.close()

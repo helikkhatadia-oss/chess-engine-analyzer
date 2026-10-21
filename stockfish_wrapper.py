@@ -69,7 +69,7 @@ def _find_stockfish(explicit_path: str = None) -> str:
 
 
 class StockfishEngine:
-    def __init__(self, path: str = None, threads: int = 2, hash_mb: int = 128):
+    def __init__(self, path: str = None, threads: int = 2, hash_mb: int = 128, multipv: int = 1):
         self.path = _find_stockfish(path)
         self.proc = subprocess.Popen(
             [self.path],
@@ -83,6 +83,12 @@ class StockfishEngine:
         self._read_until("uciok")
         self._send(f"setoption name Threads value {threads}")
         self._send(f"setoption name Hash value {hash_mb}")
+        # MultiPV > 1 lets analyze() report the 2nd-best root move's score
+        # alongside the best one, in a single search pass -- needed so the
+        # classifier can do "Great move" (large gap to 2nd best) detection
+        # using Stockfish directly, the same way it already does with
+        # own_engine's return_ranked option.
+        self._send(f"setoption name MultiPV value {multipv}")
         self._send("isready")
         self._read_until("readyok")
 
@@ -103,7 +109,12 @@ class StockfishEngine:
 
     def analyze(self, fen: str, depth: int = 16, movetime_ms: int = None):
         """Returns dict: {best_move (uci str or None), score_cp (int or None,
-        from side-to-move perspective), mate (int or None, plies to mate)}."""
+        from side-to-move perspective -- mate scores are folded into a large
+        cp value, same convention own_engine uses, so callers can treat the
+        two engines interchangeably), mate (int or None), ranked (list of
+        (move_uci, score_cp) tuples, one per MultiPV line, best-first --
+        only has more than one entry if the engine was constructed with
+        multipv > 1)}."""
         self._send("ucinewgame")
         self._send("isready")
         self._read_until("readyok")
@@ -114,8 +125,8 @@ class StockfishEngine:
             self._send(f"go depth {depth}")
 
         best_move = None
-        score_cp = None
-        mate = None
+        # multipv rank (1 = best) -> {"move": uci str, "score_cp": int or None, "mate": int or None}
+        pv_lines = {}
         while True:
             line = self.proc.stdout.readline()
             if not line:
@@ -123,22 +134,42 @@ class StockfishEngine:
             line = line.strip()
             if line.startswith("info"):
                 tokens = line.split()
-                if "score" in tokens:
-                    idx = tokens.index("score")
-                    kind = tokens[idx + 1]
-                    val = int(tokens[idx + 2])
+                if "score" in tokens and "pv" in tokens:
+                    rank = 1
+                    if "multipv" in tokens:
+                        rank = int(tokens[tokens.index("multipv") + 1])
+                    score_idx = tokens.index("score")
+                    kind = tokens[score_idx + 1]
+                    val = int(tokens[score_idx + 2])
+                    pv_idx = tokens.index("pv")
+                    move = tokens[pv_idx + 1] if len(tokens) > pv_idx + 1 else None
+                    entry = {"move": move, "score_cp": None, "mate": None}
                     if kind == "cp":
-                        score_cp = val
-                        mate = None
+                        entry["score_cp"] = val
                     elif kind == "mate":
-                        mate = val
-                        score_cp = None
+                        entry["mate"] = val
+                    pv_lines[rank] = entry  # later (deeper) info lines overwrite earlier ones
             if line.startswith("bestmove"):
                 parts = line.split()
                 best_move = parts[1] if len(parts) > 1 and parts[1] != "(none)" else None
                 break
 
-        return {"best_move": best_move, "score_cp": score_cp, "mate": mate}
+        def _fold_mate(entry):
+            if entry["mate"] is not None:
+                cp = 100000 - abs(entry["mate"]) * 100
+                return cp if entry["mate"] > 0 else -cp
+            return entry["score_cp"]
+
+        ranked = [(pv_lines[r]["move"], _fold_mate(pv_lines[r])) for r in sorted(pv_lines.keys())]
+        top_score = ranked[0][1] if ranked else None
+        top_mate = pv_lines.get(1, {}).get("mate")
+
+        return {
+            "best_move": best_move or (ranked[0][0] if ranked else None),
+            "score_cp": top_score,
+            "mate": top_mate,
+            "ranked": ranked,
+        }
 
     def close(self):
         try:

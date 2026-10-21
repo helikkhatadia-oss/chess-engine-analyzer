@@ -9,8 +9,8 @@ PGN file, or played live in the terminal), it tells you whether the move was
 
 | File                    | Purpose |
 |-------------------------|---------|
-| `own_engine.py`         | Your reference engine: negamax + alpha-beta pruning + quiescence search + transposition table, UCI-compatible. **Swap this out for your real engine** — as long as it exposes the same `Engine.search(board, max_depth, movetime, return_ranked)` interface (or you wrap your UCI binary the same way `stockfish_wrapper.py` does), nothing else needs to change. |
-| `stockfish_wrapper.py`  | Thin subprocess wrapper around the system Stockfish binary, used to verify "Brilliant" sacrifice calls independently of the primary engine. |
+| `own_engine.py`         | Your reference engine: negamax + alpha-beta pruning + quiescence search + transposition table, UCI-compatible. Used as the **fallback evaluator** when Stockfish isn't installed (see below). **Swap this out for your real engine** — as long as it exposes the same `Engine.search(board, max_depth, movetime, return_ranked)` interface, nothing else needs to change. |
+| `stockfish_wrapper.py`  | Thin subprocess wrapper around the system Stockfish binary. When Stockfish is available, it's the **primary evaluator for every move** (not just a sacrifice spot-check — see "Engine architecture" below). |
 | `classifier.py`         | The actual classification logic — thresholds, sacrifice detection, "Great move" (only-move) detection, book-move heuristic. |
 | `analyze.py`            | CLI entry point: `pgn` mode (analyze a PGN file), `live` mode (play interactively), and `fetch` mode (pull a game straight from chess.com/lichess by username — no PGN export needed). |
 | `fetch_games.py`        | Pulls recent games from the chess.com and lichess public APIs by username. |
@@ -102,6 +102,31 @@ Both sites' APIs are free and need no login or API key for public games.
 chess.com's API does ask that requests identify themselves, so this tool
 sends a descriptive `User-Agent`; be considerate with `--list-count` if
 you're pulling someone's whole history.
+
+## Engine architecture
+
+**When Stockfish is available, it is the primary evaluator for every move** —
+not just a secondary check on flashy sacrifices. `own_engine.py` (the
+pure-Python reference engine) is used only as a fallback when Stockfish
+isn't installed (or `--no-stockfish` is passed).
+
+This wasn't the original design, and it's worth being honest about why it
+changed: `own_engine` at a practical depth (4-6) handles sharp, forced
+sequences reasonably well, but was found — by comparing its output against
+a real Stockfish-backed analyzer on an actual played game — to badly
+misjudge quiet, positional moments. It flagged standard, well-known
+opening theory (the Ruy Lopez, Open Variation) as a string of outright
+blunders, simply because its evaluation function is material + piece-square
+tables only, with no king-safety or long-term positional understanding.
+Using real Stockfish for every move (not just sacrifice spot-checks) fixed
+this, and is also *faster* than the old approach, since Stockfish is many
+orders of magnitude faster per node than a pure-Python search.
+
+**Practical implication:** install Stockfish if you want classifications
+you can actually trust (see Setup above) — `--no-stockfish` still works,
+but treat its output as a rough approximation, not a real analysis. The
+CLI's "Engine:" line at the top of every run tells you honestly which mode
+you're in.
 
 ## Worked example: the Opera Game
 

@@ -83,7 +83,13 @@ THRESHOLDS = [
     (float("inf"), "Blunder"),
 ]
 
-SACRIFICE_MIN_VALUE = 300          # centipawns; knight/bishop or more
+SACRIFICE_MIN_VALUE = 200          # centipawns; catches e.g. a knight given up for
+                                    # just a pawn (net -220cp) as a real sacrifice,
+                                    # while still filtering out a plain single-pawn
+                                    # sac (-100cp), which isn't usually brilliancy-worthy
+                                    # on its own. Was 300 -- found too strict when a
+                                    # real knight-for-pawn king-hunt sac (net -220cp)
+                                    # didn't clear the old bar.
 GREAT_MOVE_GAP_CP = 150            # gap to 2nd-best move to call it "Great"
 BRILLIANT_MIN_EVAL_AFTER = -50     # position must still be ~fine/winning (cp, mover POV)
 BOOK_PLY_LIMIT = 8                 # first 4 full moves considered possible "book"
@@ -138,7 +144,17 @@ class GameClassifier:
         self.depth = depth
         self.movetime_ms = movetime_ms
         self.use_stockfish_verify = use_stockfish_verify
-        self.sf = StockfishEngine(path=stockfish_path) if use_stockfish_verify else None
+        # When available, Stockfish is now the PRIMARY evaluator for every
+        # move -- not just a secondary check on sacrifices. own_engine's
+        # depth-4-ish pure-Python search is fine on sharp, forced sequences
+        # but was found (by comparison against a real Stockfish-backed
+        # analyzer on an actual played game) to badly misjudge quiet,
+        # positional moments -- including flagging standard, well-known
+        # opening theory as outright blunders. MultiPV=2 gives us the
+        # 2nd-best root move's score in the same search pass, same as
+        # own_engine.search(return_ranked=True), for "Great move" detection.
+        self.sf = StockfishEngine(path=stockfish_path, multipv=2) if use_stockfish_verify else None
+        self.primary = "stockfish" if self.sf is not None else "own_engine"
 
     def close(self):
         if self.sf:
@@ -156,16 +172,25 @@ class GameClassifier:
         second_score = ranked[1][1] if len(ranked) > 1 else None
         return best_move, best_score, second_score
 
-    def _sf_eval(self, board: chess.Board):
-        if not self.sf:
-            return None, None
-        result = self.sf.analyze(board.fen(), depth=self.depth, movetime_ms=self.movetime_ms)
-        if result["mate"] is not None:
-            cp = 100000 - abs(result["mate"]) * 100
-            cp = cp if result["mate"] > 0 else -cp
-        else:
-            cp = result["score_cp"]
-        return result["best_move"], cp
+    def _primary_eval(self, board: chess.Board):
+        """Returns (best_move, score_cp, second_best_score_cp_or_None), mover
+        POV, from whichever engine is primary: Stockfish when available
+        (self.sf, constructed with multipv=2), else own_engine as a
+        fallback. This is THE evaluation used to drive classification for
+        every move -- own_engine is no longer silently relegated to
+        sacrifice-only double-checking when Stockfish is present."""
+        if not list(board.legal_moves):
+            return None, None, None
+        if self.sf is not None:
+            result = self.sf.analyze(board.fen(), depth=self.depth, movetime_ms=self.movetime_ms)
+            ranked = result["ranked"]
+            if not ranked:
+                return None, None, None
+            best_uci, best_score = ranked[0]
+            second_score = ranked[1][1] if len(ranked) > 1 else None
+            best_move = chess.Move.from_uci(best_uci) if best_uci else None
+            return best_move, best_score, second_score
+        return self._own_eval(board)
 
     # -- per-move classification ---------------------------------------------
     def classify_move(self, board_before: chess.Board, move: chess.Move, ply: int) -> MoveAnalysis:
@@ -178,14 +203,14 @@ class GameClassifier:
 
         # Best move & its resulting eval (mover's POV) via search on root.
         # (eval_before, for display purposes, is just this position's best score.)
-        best_move, best_score, second_score = self._own_eval(board_before)
+        best_move, best_score, second_score = self._primary_eval(board_before)
         eval_before = best_score
         engine_best_san = board_before.san(best_move) if best_move else None
 
         # Eval after the ACTUAL move played, converted back to mover's POV
         board_after = board_before.copy()
         board_after.push(move)
-        _, eval_after_opp_pov, _ = self._own_eval(board_after) if not board_after.is_game_over() else (None, self._terminal_score(board_after), None)
+        _, eval_after_opp_pov, _ = self._primary_eval(board_after) if not board_after.is_game_over() else (None, self._terminal_score(board_after), None)
         eval_after_actual = -eval_after_opp_pov if eval_after_opp_pov is not None else None
 
         cp_loss = 0
@@ -233,15 +258,19 @@ class GameClassifier:
                         is_sacrifice = True
 
             if is_sacrifice and eval_after_actual is not None and eval_after_actual >= BRILLIANT_MIN_EVAL_AFTER:
-                # Verify independently with Stockfish to avoid a shallow blind spot
-                verified = True
-                if self.sf:
-                    _, sf_after_opp = self._sf_eval(board_after)
-                    sf_after_actual = -sf_after_opp if sf_after_opp is not None else None
-                    verified = sf_after_actual is not None and sf_after_actual >= BRILLIANT_MIN_EVAL_AFTER - 50
-                if verified:
-                    label = "Brilliant"
-                    notes.append("Sound sacrifice verified by Stockfish")
+                # eval_after_actual above already comes from the primary
+                # evaluator (Stockfish, when available -- see _primary_eval),
+                # so no separate re-verification search is needed here; the
+                # note below just reports, honestly, which engine actually
+                # produced that number (previously this could claim
+                # "verified by Stockfish" even when Stockfish wasn't in use
+                # at all -- fixed).
+                label = "Brilliant"
+                if self.sf is not None:
+                    notes.append("Sound sacrifice confirmed by Stockfish (primary evaluator)")
+                else:
+                    notes.append("Sound sacrifice per own_engine -- Stockfish not available "
+                                  "for independent verification, treat with caution")
 
         return MoveAnalysis(
             ply=ply, move_number=move_number, color=color, san=san, uci=uci,
