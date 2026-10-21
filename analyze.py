@@ -12,20 +12,28 @@ Modes
   live  Play an interactive game against the engine in the terminal. After
          every move (yours and the engine's), you get instant feedback.
 
+  fetch Pull a recent game straight from chess.com or lichess by username —
+        no manual PGN export needed. List mode shows recent games; pick one
+        with --index and it's analyzed exactly like `pgn` mode.
+
 Examples
 --------
   python3 analyze.py pgn --file game.pgn --depth 6
   python3 analyze.py pgn --file game.pgn --movetime 800 --out annotated.pgn
   python3 analyze.py live --depth 5 --side white
+  python3 analyze.py fetch --site chesscom --username hikaru
+  python3 analyze.py fetch --site lichess --username DrNykterstein --index 1
 """
 
 import argparse
+import io
 import sys
 import chess
 import chess.pgn
 
 from classifier import GameClassifier, MoveAnalysis
 from own_engine import Engine as OwnEngine
+from fetch_games import fetch_games, FetchError
 
 LABEL_SYMBOLS = {
     "Brilliant": "!!",
@@ -105,13 +113,9 @@ def write_annotated_pgn(game: chess.pgn.Game, analyses, out_path):
     print(f"\nAnnotated PGN written to {out_path}")
 
 
-def cmd_pgn(args):
-    with open(args.file) as f:
-        game = chess.pgn.read_game(f)
-    if game is None:
-        print("Could not read a game from that PGN file.", file=sys.stderr)
-        sys.exit(1)
-
+def analyze_game(game: chess.pgn.Game, args, out_path=None):
+    """Shared analysis pipeline used by both `pgn` (file on disk) and
+    `fetch` (game pulled live from chess.com/lichess) subcommands."""
     white_name = game.headers.get("White", "White")
     black_name = game.headers.get("Black", "Black")
     print(f"Analyzing: {white_name} vs {black_name}  "
@@ -133,8 +137,53 @@ def cmd_pgn(args):
 
     print_summary(analyses, white_name, black_name)
 
-    if args.out:
-        write_annotated_pgn(game, analyses, args.out)
+    if out_path:
+        write_annotated_pgn(game, analyses, out_path)
+
+
+def cmd_pgn(args):
+    with open(args.file) as f:
+        game = chess.pgn.read_game(f)
+    if game is None:
+        print("Could not read a game from that PGN file.", file=sys.stderr)
+        sys.exit(1)
+    analyze_game(game, args, out_path=args.out)
+
+
+def cmd_fetch(args):
+    try:
+        games = fetch_games(args.site, args.username, max_games=args.list_count)
+    except FetchError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    if not games:
+        print(f"No games found for '{args.username}' on {args.site}.", file=sys.stderr)
+        sys.exit(1)
+
+    if args.index is None:
+        # Browse mode: just list recent games so the user can pick one.
+        print(f"Most recent games for {args.username} on {args.site} "
+              f"(newest first) — rerun with --index N to analyze one:\n")
+        for g in games:
+            print(f"  {g.label()}")
+        return
+
+    if not (1 <= args.index <= len(games)):
+        print(f"--index must be between 1 and {len(games)} "
+              f"(only {len(games)} games were fetched; try --list-count to fetch more).",
+              file=sys.stderr)
+        sys.exit(1)
+
+    chosen = games[args.index - 1]
+    game = chess.pgn.read_game(io.StringIO(chosen.pgn))
+    if game is None:
+        print("Fetched PGN could not be parsed — the source game may be "
+              "incomplete or in an unsupported variant.", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"Fetched: {chosen.label()}\n")
+    analyze_game(game, args, out_path=args.out)
 
 
 def cmd_live(args):
@@ -219,6 +268,27 @@ def main():
     live_p.add_argument("--no-stockfish", action="store_true")
     live_p.add_argument("--stockfish-path", default=None)
     live_p.set_defaults(func=cmd_live)
+
+    fetch_p = sub.add_parser(
+        "fetch",
+        help="Pull a recent game straight from chess.com/lichess by username — no PGN export needed")
+    fetch_p.add_argument("--site", choices=["chesscom", "lichess"], required=True,
+                          help="Which site to fetch from")
+    fetch_p.add_argument("--username", required=True, help="Player's username on that site")
+    fetch_p.add_argument("--index", type=int, default=None,
+                          help="1-based index (newest game = 1) of the game to analyze. "
+                               "Omit to just list recent games first.")
+    fetch_p.add_argument("--list-count", type=int, default=15,
+                          help="How many recent games to fetch/list (default 15)")
+    fetch_p.add_argument("--depth", type=int, default=6, help="Search depth ceiling (default 6)")
+    fetch_p.add_argument("--movetime", type=int, default=1000,
+                          help="Max milliseconds per position (default 1000)")
+    fetch_p.add_argument("--no-stockfish", action="store_true",
+                          help="Disable Stockfish verification")
+    fetch_p.add_argument("--stockfish-path", default=None,
+                          help="Full path to the Stockfish executable, if not on your PATH")
+    fetch_p.add_argument("--out", help="Write an annotated PGN to this path")
+    fetch_p.set_defaults(func=cmd_fetch)
 
     args = parser.parse_args()
     args.func(args)

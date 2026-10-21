@@ -12,7 +12,8 @@ PGN file, or played live in the terminal), it tells you whether the move was
 | `own_engine.py`         | Your reference engine: negamax + alpha-beta pruning + quiescence search + transposition table, UCI-compatible. **Swap this out for your real engine** — as long as it exposes the same `Engine.search(board, max_depth, movetime, return_ranked)` interface (or you wrap your UCI binary the same way `stockfish_wrapper.py` does), nothing else needs to change. |
 | `stockfish_wrapper.py`  | Thin subprocess wrapper around the system Stockfish binary, used to verify "Brilliant" sacrifice calls independently of the primary engine. |
 | `classifier.py`         | The actual classification logic — thresholds, sacrifice detection, "Great move" (only-move) detection, book-move heuristic. |
-| `analyze.py`            | CLI entry point: `pgn` mode (analyze a PGN file) and `live` mode (play interactively with move-by-move feedback). |
+| `analyze.py`            | CLI entry point: `pgn` mode (analyze a PGN file), `live` mode (play interactively), and `fetch` mode (pull a game straight from chess.com/lichess by username — no PGN export needed). |
+| `fetch_games.py`        | Pulls recent games from the chess.com and lichess public APIs by username. |
 | `examples/sample_game.pgn` | The famous Morphy "Opera Game" (1858), included as a worked example — see below. |
 | `examples/annotated_opera_game.pgn` | The Opera Game annotated by this tool's classifier — see "Worked example" below. |
 | `examples/sample_analysis_output.txt` | Full console output from running the analyzer on the Opera Game. |
@@ -69,6 +70,38 @@ python3 analyze.py live --side white --depth 5 --movetime 800
 
 Enter moves in SAN (`Nf3`) or UCI (`g1f3`); type `quit` to stop. You get a
 classification after every move — yours and the engine's.
+
+### Analyze a game straight from chess.com or lichess (no export needed)
+
+No need to manually export a PGN first — just point the tool at a username,
+the same way Chessigma-style analyzers work:
+
+```bash
+# Browse mode: list someone's recent games first
+python3 analyze.py fetch --site chesscom --username hikaru
+python3 analyze.py fetch --site lichess --username DrNykterstein
+
+# Then pick one (1 = most recent) and analyze it
+python3 analyze.py fetch --site chesscom --username hikaru --index 1
+python3 analyze.py fetch --site lichess --username DrNykterstein --index 3 --out annotated.pgn
+```
+
+- `--site` — `chesscom` or `lichess`
+- `--username` — the player's username on that site (any public account works,
+  including your own)
+- Omit `--index` to just list recent games (newest first) with opponent,
+  result, time control and date, so you can see what's there before
+  committing to a full analysis
+- `--index N` — analyze the Nth game from that list (1 = most recent)
+- `--list-count` — how many recent games to pull (default 15)
+- All the usual `--depth`, `--movetime`, `--no-stockfish`, `--stockfish-path`
+  and `--out` flags from `pgn` mode work the same way here, since under the
+  hood it's the exact same classifier — only the source of the PGN differs
+
+Both sites' APIs are free and need no login or API key for public games.
+chess.com's API does ask that requests identify themselves, so this tool
+sends a descriptive `User-Agent`; be considerate with `--list-count` if
+you're pulling someone's whole history.
 
 ## Worked example: the Opera Game
 
