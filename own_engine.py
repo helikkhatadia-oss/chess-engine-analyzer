@@ -127,7 +127,16 @@ def evaluate(board: chess.Board) -> int:
     """Static evaluation in centipawns, from the side-to-move's perspective."""
     if board.is_checkmate():
         return -100000
-    if board.is_stalemate() or board.is_insufficient_material() or board.can_claim_draw():
+    # NOTE: deliberately NOT calling board.can_claim_draw() here — on a
+    # position with a long real-game move stack behind it (e.g. analyzing
+    # move 40 of an actual played game), that call triggers python-chess's
+    # threefold-repetition scan, which walks the *entire* move history.
+    # This function runs at every quiescence leaf, so that cost multiplies
+    # into minutes of hanging on anything but a short game. is_fifty_moves()
+    # is an O(1) halfmove-clock check and covers the common draw case
+    # cheaply; true in-search repetition is handled separately in negamax()
+    # via Engine.search_path, scoped to the current search line only.
+    if board.is_stalemate() or board.is_insufficient_material() or board.is_fifty_moves():
         return 0
 
     endgame = is_endgame(board)
@@ -178,6 +187,13 @@ class Engine:
         self.start_time = 0.0
         self.time_limit = None
         self.stop_search = False
+        # Positions visited along the CURRENT search line (root -> current
+        # node), reset at the start of each search() call. Used to detect an
+        # in-search repetition cheaply (O(1) set lookup) instead of calling
+        # board.can_claim_draw(), which rescans the whole real-game move
+        # stack and is far too slow to call at every search node on a long
+        # real game (see evaluate()'s docstring note above).
+        self.search_path = set()
 
     # -- move ordering -----------------------------------------------------
     def _order_moves(self, board: chess.Board, moves, tt_move=None):
@@ -230,6 +246,16 @@ class Engine:
 
         alpha_orig = alpha
         key = hash(board._transposition_key())
+
+        # In-search repetition check: O(1) against positions visited along
+        # THIS recursive line, instead of board.can_claim_draw() (which
+        # scans the entire real-game move stack and is the thing that was
+        # making this hang for minutes on a real, long game — see
+        # evaluate()'s docstring note). Treating any repeat within the
+        # search line as a draw is a standard, cheap engine approximation.
+        if key in self.search_path:
+            return 0
+
         entry = self.tt.get(key)
         tt_move = None
         if entry is not None and entry.depth >= depth:
@@ -247,7 +273,7 @@ class Engine:
 
         if board.is_checkmate():
             return -100000 + (1000 - depth)  # prefer faster mates
-        if board.is_stalemate() or board.is_insufficient_material() or board.can_claim_draw():
+        if board.is_stalemate() or board.is_insufficient_material() or board.is_fifty_moves():
             return 0
         if depth == 0:
             return self.quiescence(board, alpha, beta)
@@ -255,11 +281,13 @@ class Engine:
         best_value = -10**9
         best_move = None
         moves = self._order_moves(board, list(board.legal_moves), tt_move)
+        self.search_path.add(key)
         for move in moves:
             board.push(move)
             value = -self.negamax(board, depth - 1, -beta, -alpha)
             board.pop()
             if self.stop_search:
+                self.search_path.discard(key)
                 return 0
             if value > best_value:
                 best_value = value
@@ -268,6 +296,7 @@ class Engine:
                 alpha = best_value
             if alpha >= beta:
                 break
+        self.search_path.discard(key)
 
         flag = EXACT
         if best_value <= alpha_orig:
@@ -293,18 +322,21 @@ class Engine:
         self.stop_search = False
         self.start_time = time.time()
         self.time_limit = movetime
+        self.search_path = set()  # fresh per top-level search() call
 
         best_move = None
         best_score = 0
         info = []
         ranked = []
 
+        root_key = hash(board._transposition_key())
         for depth in range(1, max_depth + 1):
             alpha, beta = -10**9, 10**9
             moves = self._order_moves(board, list(board.legal_moves), best_move)
             iter_scores = []
             iter_best_move = None
             iter_best_value = -10**9
+            self.search_path.add(root_key)
             for move in moves:
                 board.push(move)
                 value = -self.negamax(board, depth - 1, -beta, -alpha)
